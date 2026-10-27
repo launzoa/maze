@@ -1,17 +1,10 @@
 #pragma once 
 #include "raylib.h"
+#include "types.hpp"
 #include "game.hpp"
 #include <vector>
 #include <iostream>
 #include <unordered_map>
-
-// Esturutra que representa um nó no grafo
-struct Node {
-    char name;
-    int row;
-    int col;
-    std::vector<Node*> neighbors; 
-};
 
 
 // Função para localizar os nós na matriz 

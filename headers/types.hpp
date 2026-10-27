@@ -1,11 +1,21 @@
 #pragma once 
 #include "raylib.h"
 #include <vector>
+#include <string>
+#include <unordered_map>
 
 // Enum para representar cada tela do jogo, i.e., a tela de menu ou do jogo
-enum class GameScreen {
+enum class Screen {
     MENU = 0,
     GAME = 1
+};
+
+// Esturutra que representa um nó no grafo
+struct Node {
+    char name;
+    int row;
+    int col;
+    std::vector<Node*> neighbors; 
 };
 
 // Estrutura para representar o jogador
@@ -75,4 +85,17 @@ struct Player {
     }
 };
 
+// Esturutra para representar o estado do jogo (para emscripten, webassembly)
+struct GameState {
+    std::vector<std::string> maze;
+    Texture2D playerTexture;
 
+    Texture2D groundTexture;
+    Texture2D grassTexture;
+    Texture2D grassFlowerTexture;
+    Texture2D treeTexture;
+
+    Screen currentScreen = Screen::MENU;
+    Player player;
+    std::unordered_map<char, Node> nodes;
+};

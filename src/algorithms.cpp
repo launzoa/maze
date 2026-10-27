@@ -2,8 +2,6 @@
 #include <cmath>
 using namespace std;
 
-
-
 /// @brief Extrai os nós do mapa (já transformado em uma matriz) para uma lista de nós contendo as respectivas
 ///     Coordenadas (linha, coluna) desses nós
 /// @param maze O mapa do jogo, representado como uma matriz de strings 
@@ -281,160 +279,153 @@ float heuristic(Node* a, Node* goal) {
     return distance(a, goal);
 }
 
+
 /// @brief Busca de Custo Uniforme (Dijkstra)
 /// @param start Nó inicial da busca
 /// @param goal Identificador da meta (char)
 /// @return Vetor de coordenadas para movimentação do jogador
 vector<Vector2> ucs(Node* start, char goal) {
-    unordered_map<Node*, Node*> parent; // Mapa (dicionário) para marcar o parentesco
-    parent[start] = nullptr; // Nó de começo não tem pai
+    unordered_map<Node*, Node*> parent; // Dicionário para manter a atualização de parentescos
+    parent[start] = nullptr; // Coloca o nó de começo como o único com pai nulo
 
-    unordered_map<Node*, float> costSoFar; // Dicionário para armazenar o custo até agora 
-    costSoFar[start] = 0.0f; // Custo do de começo é nulo
+    unordered_map<Node*, float> costSoFar; // Dicionário para armazenar o custo (até o momento) para o nó 
+    costSoFar[start] = 0.0f; // Custo do nó de começo é nulo
 
-    vector<Node*> open; // Lista de nós em aberto (a serem explorados)
-    open.push_back(start); // Adiciona o nó de começo a ser explorado
+    vector<Node*> open; // Pilha de nós em aberto (a serem explorados)
+    open.push_back(start); // Adiciona o nó de começo para ser explorado
     vector<Node*> closed; // Lista de nós em fechado (já explorados)
-    vector<Vector2> path; // Lista de coordenadas para o caminho
 
-    Node* lastNode = start;
-    path.push_back(nodeToCoord(start));
+    vector<Vector2> path; // Lista de coordenadas para marcando todos os nós procurados no algoritmo 
+    path.push_back(nodeToCoord(start)); // Adiciona o primeiro nó na lista de coordenadas
 
-    while (!open.empty()) { // Enquanto ainda há nós a serem explorados
-        int bestIndex = 0; // Variável para armazenar o índice
-        for (int i = 1; i < open.size(); i++) {  
-            // Encontra o nó com menor custo acumulado g(n) na lista de abertos
-            if (costSoFar[open[i]] < costSoFar[open[bestIndex]]) {
-                bestIndex = i; // MAntém o seu índice
-            }
+    Node* lastNode = start; // Mantém o último nó
+
+    while (!open.empty()) { // Enquanto ainda há nós à serem explorados
+        int bestIdx = 0; // Variável para armazenar o índice do melhor (menor) custo 
+
+        for (int i = 1; i < open.size(); i++) { // Percorre pelos índices de todos os nós em exploração 
+            // Verificando se há um nó com menor custo que o melhor atual (até o momento)  
+            if (costSoFar[open[i]] < costSoFar[open[bestIdx]]) bestIdx = i; // Se sim, define esse nó como o melhor atual 
         }
 
-        Node* current = open[bestIndex]; // Pega o nó atual como o melhor nó a ser explroado em aberto
-        open.erase(open.begin() + bestIndex); // Elimina ele da lista em aberto
-        closed.push_back(current); // Adiciona ele na lista em fechado
+        Node* current = open[bestIdx]; // Define o nó atual como o de melhor custo
+        open.erase(open.begin() + bestIdx); // Remove o nó atual da lista de exploração
+        closed.push_back(current); // Adiciono ele na lista de já explorados
 
-        // O movimento visual com backtracking pelo algoritmo de menor ancestral comum
-        pathBetween(lastNode, current, parent, path);
-        lastNode = current;
+        pathBetween(lastNode, current, parent, path); // O backtracking visual pelo algoritmo de menor ancestral comum
+        lastNode = current; // Atualiza o último nó
 
-        if (current->name == goal) break; // Se o objetivo for encontrado
+        if (current->name == goal) break; // Se o objetivo tiver sido encontrado
 
         for (Node* neighbor : current->neighbors) { // Percorre pelos vizinhos do nó
-            float newCost = costSoFar[current] + distance(current, neighbor); // Calcula o custo do nó, i.e., f = g + h
+            float newCost = costSoFar[current] + distance(neighbor, current); // Calcula o novo custo do nó, c(n) + d(n)
+            float currentCost = costSoFar.count(neighbor) ? costSoFar[neighbor] : INFINITY; // Se o nó ainda não foi visitado (custo é infinito)
+            // Então, verifica se o nó já não foi exploradl (se já tiver sido, não tem como baixar o custo), e se o custo é melhor que o já previsto
+            if (notVisited(neighbor->name, closed) && newCost < currentCost) { 
+                costSoFar[neighbor] = newCost; // Adiciona o novo custo na tabela de custos
+                parent[neighbor] = current; // Atualiza o parentesco do nó 
 
-            if (notVisited(neighbor->name, closed)) { // Adiciona os vizinhos ainda não visitados
-                if (notVisited(neighbor->name, open) || newCost < costSoFar[neighbor]) { // E/ou com custo inferior
-                    costSoFar[neighbor] = newCost; // Calcula o novo custo
-                    parent[neighbor] = current;  // Define o seu novo (ou não) pai
-
-                    if (notVisited(neighbor->name, open)) {  // Se o nó não tiver sido visitado (para o caso de entrar por custo)
-                        open.push_back(neighbor); // Adiciona na lista de a serem explorados
-                    }
-                }
+                // Se é a primeira vez sentido visitado, adiciona os seu vizinho  
+                if (notVisited(neighbor->name, open)) open.push_back(neighbor); // Para ser explorado
             }
         }
     }
 
-    return path; // Retorna o caminho da busca
+    return path; // Retorna o caminho da busca feita pelo algoritmo
 }
 
 /// @brief Busca Gulosa (Greedy Best-First Search)
-/// Prioriza o nó com menor estimativa heurística h(n) até o objetivo
 /// @param start Nó inicial da busca
 /// @param goal Nó objetivo
 /// @return Vetor de coordenadas para movimentação do jogador
 vector<Vector2> greedy(Node* start, Node* goal) {
-    unordered_map<Node*, Node*> parent;
-    parent[start] = nullptr;
+    vector<Node*> open; // Pilha contendo os nós em aberto (sendo explorados)
+    open.push_back(start); // Adiciona o nó de começo do grafo na lista em aberto 
+    vector<Node*> closed;  // Lista contendo os nós em fechado (já explorados) 
 
-    vector<Node*> open = {start};
-    vector<Node*> closed;
-    vector<Vector2> path;
+    vector<Vector2> path; // Lista contendo as coordenadas para os nós percorridos na busca
+    path.push_back(nodeToCoord(start)); // Adiciona a coordenada do nó de começo na lista de caminho
+    unordered_map<Node*, Node*> parent; // Dicionário contendo os parentescos dos nós (não é necessário, apenas visual)
+    parent[start] = nullptr; // Inicializa o nó de começo com pai null 
+    Node* lastNode = start; // Variável para manter o último nó (visualização)
 
-    Node* lastNode = start;
-    path.push_back(nodeToCoord(start));
-
-    while (!open.empty()) {
-        // Encontra o nó com menor h(n) até a meta na lista de abertos
-        int bestIndex = 0;
-        for (int i = 1; i < (int)open.size(); i++) {
-            if (heuristic(open[i], goal) < heuristic(open[bestIndex], goal)) {
-                bestIndex = i;
-            }
+    while (!open.empty()) { // Enquanto ainda tiver nó a ser explorado
+        int bestIdx = 0; // Variável para manter o índice do nó com a melhor heurística 
+        // Percorre todos os índice da lista em aberto, procurando pelos nós    
+        for (int i = 1; i < open.size(); i++) { // Cuja sua heurística seja a melhor
+            if (heuristic(open[i], goal) < heuristic(open[bestIdx], goal)) bestIdx = i; // Atualizando a variável de melhor índice 
         }
-        Node* current = open[bestIndex];
-        open.erase(open.begin() + bestIndex);
-        closed.push_back(current);
 
-        // Movimento visual com backtracking suave via menor ancestral comum
-        pathBetween(lastNode, current, parent, path);
+        Node* current = open[bestIdx]; // Pega o nó atual como o melhor da lista de exploração
+        open.erase(open.begin() + bestIdx); // Retira ele da lista de exploração
+        closed.push_back(current); // E adiciona ele na lista de já explorados
+
+        pathBetween(lastNode, current, parent, path); // Backtracking visual via menor ancestral em comum 
         lastNode = current;
 
-        if (current->name == goal->name) break;
+        if (current->name == goal->name) break; // Se encontrou o nó objetivo 
 
-        for (Node* neighbor : current->neighbors) {
-            if (notVisited(neighbor->name, open) && notVisited(neighbor->name, closed)) {
-                parent[neighbor] = current;
-                open.push_back(neighbor);
+        for (Node* neighbor : current->neighbors) { // Percorre pelos vizinhos do nó atual
+            if (notVisited(neighbor->name, open) && notVisited(neighbor->name, closed)) { // Se ainda não tiver sido visitado
+                parent[neighbor] = current; // Adiciona os seus parentes (apenas para visualização)
+                open.push_back(neighbor); // Adiciona na lista
             }
         }
     }
 
-    return path;
+    return path; // Retorna o caminho feito pelo algoritmo
 }
 
 /// @brief Busca A* (A-Star Search)
-/// Combina o custo acumulado g(n) com a estimativa heurística h(n): f(n) = g(n) + h(n)
 /// @param start Nó inicial da busca
 /// @param goal Nó objetivo
 /// @return Vetor de coordenadas para movimentação do jogador
 vector<Vector2> astar(Node* start, Node* goal) {
-    unordered_map<Node*, Node*> parent;
-    parent[start] = nullptr;
+    unordered_map<Node*, Node*> parent; // Dicionário para manter os parentescos (não só visual, o algoritmo realmente precisa)
+    parent[start] = nullptr; // Inicializa o nó de começo com pai nulo
 
-    unordered_map<Node*, float> costSoFar;
-    costSoFar[start] = 0.0f;
+    unordered_map<Node*, float> costSoFar; // Dicionário para manter os custos percorridos 
+    costSoFar[start] = 0.0f; // Inicializa o nó de começo com custo zero
 
-    vector<Node*> open = {start};
-    vector<Node*> closed;
-    vector<Vector2> path;
+    vector<Node*> open; // Lista de nós em abertos (a serem explorados)
+    open.push_back(start); // Adiciona o primeiro nó na lista de exploração
+    vector<Node*> closed; // Lista de nós em fechados (já explorados)
 
-    Node* lastNode = start;
-    path.push_back(nodeToCoord(start));
+    vector<Vector2> path; // Lista de coordenadas contendo o caminho (os nó) percorrido pelo algoritmo 
+    Node* lastNode = start; // Só para manter o último nó (usado para encontrar o ancestral comum)
+    path.push_back(nodeToCoord(start)); // Adiciona a coordenada do primeiro nó na lista de caminho
 
-    while (!open.empty()) {
-        // Encontra o nó com menor f(n) = g(n) + h(n) na lista de abertos
-        int bestIndex = 0;
-        float bestF = costSoFar[open[0]] + heuristic(open[0], goal);
-        for (int i = 1; i < (int)open.size(); i++) {
-            float f = costSoFar[open[i]] + heuristic(open[i], goal);
-            if (f < bestF) {
-                bestF = f;
-                bestIndex = i;
+    while (!open.empty()) { // Enquanto ainda há nó a ser explorado 
+        int bestIdx = 0; // Variável para armazenar o índice do nó com o melhor valor, i.e., f(n) = g(n) + h(n)  
+        float bestF = costSoFar[open[0]] + heuristic(open[0], goal); // Calcula o valor do primeiro nó 
+
+        for (int i = 1; i < open.size(); i++) { // Percorre por todos os índices (>0) da lista em exploração
+            float f = costSoFar[open[i]] + heuristic(open[i], goal); // E calcula o seu valor 
+
+            if (f < bestF) { // Se encontrar um valor melhor (menor)
+                bestF = f; // Atualiza o valor atual como o melhor 
+                bestIdx = i; // Atualiza o seu índice
             }
         }
-        Node* current = open[bestIndex];
-        open.erase(open.begin() + bestIndex);
-        closed.push_back(current);
 
-        // Movimento visual com backtracking suave via menor ancestral comum
-        pathBetween(lastNode, current, parent, path);
-        lastNode = current;
+        Node* current = open[bestIdx]; // Pega o nó com melhor valor da lista em exploração 
+        open.erase(open.begin() + bestIdx); // Remove ele da lista em exploração
+        closed.push_back(current); // Adiciona ele na lista de nós já explorados
 
-        if (current->name == goal->name) break;
+        pathBetween(lastNode, current, parent, path); // Backtracking visual por menor ancestral comum
+        lastNode = current; // E atualiza o último nó
 
-        for (Node* neighbor : current->neighbors) {
-            float newCost = costSoFar[current] + distance(current, neighbor);
+        if (current->name == goal->name) break; // Se encontrou o objetivo, vaza fora do loop
 
-            if (notVisited(neighbor->name, closed)) {
-                bool inOpen = !notVisited(neighbor->name, open);
-                if (!inOpen || newCost < costSoFar[neighbor]) {
-                    costSoFar[neighbor] = newCost;
-                    parent[neighbor] = current;
-                    if (!inOpen) {
-                        open.push_back(neighbor);
-                    }
-                }
+        for (Node* neighbor : current->neighbors) { // Se não, adiciona os nós vizinhos
+            float newCost = costSoFar[current] + distance(current, neighbor); // Pega o novo custo do nó
+            float currentCost = costSoFar.count(neighbor) ? costSoFar[neighbor] : INFINITY; // Caso não tenha um custo ainda (então, é infinito)
+            // Se ainda não visitou o nó e o seu custo calculado foi melhor
+            if (notVisited(neighbor->name, closed) && newCost < currentCost) {
+                costSoFar[neighbor] = newCost; // Atualiza o seu custo de distância
+                parent[neighbor] = current; // Atualiza o seu parentesco
+                // Se o nó não foi explorado, adiciona para exploração
+                if (notVisited(neighbor->name, open)) open.push_back(neighbor); 
             }
         }
     }
