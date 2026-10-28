@@ -2,7 +2,7 @@
 
 Esse projeto é uma simulador de **algoritmos de busca em grafos** em um ambiente inspirado no mapa clássico de *Viridian Forest* (Pokémon FireRed/LeafGreen). O projeto foi desenvolvido em **C++17** com a biblioteca gráfica **[Raylib](https://www.raylib.com/)** e compilado para a Web através de **WebAssembly (Emscripten)**.
 
-👉 **[Clique aqui para jogar direto no navegador!](https://launzoa.github.io/maze/)**
+**[Clique aqui para jogar direto no navegador!](https://launzoa.github.io/maze/)**
 
 ---
 
